@@ -47,6 +47,8 @@ RUN set -ex \
         Mopidy-Material-Webclient \
         Mopidy-API-Explorer \
         Mopidy-WebSettings \
+        Mopidy-Local-SQLite \
+        Mopidy-Local-Images \
         pyasn1==0.3.2 \
     # Clean-up
  && apt-get purge --auto-remove -y \
@@ -58,7 +60,7 @@ RUN set -ex \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* ~/.cache \
     # Limited access rights.
- && chown mopidy:audio -R /var/lib/mopidy/.config/ \
+ && chown mopidy:audio -R /var/lib/mopidy \
  && chmod +x /entrypoint.sh \
  && chown mopidy:audio /entrypoint.sh
 

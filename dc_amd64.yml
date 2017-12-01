@@ -1,8 +1,37 @@
 version: '3'
+
+volumes:
+  cache:
+
 services:
+  mopidy_prepare:
+    image: whatever4711/mopidy:amd64
+    user: root
+    volumes:
+      - ./local:/var/lib/mopidy/local
+      - cache:/var/lib/mopidy/.local/share/mopidy
+    entrypoint:
+      - chown
+      - -R
+      - mopidy:audio
+      - /var/lib/mopidy/
+
+  mopidy_scan:
+    image: whatever4711/mopidy:amd64
+    volumes:
+      - ./media:/var/lib/mopidy/media:ro
+      - ./local:/var/lib/mopidy/local
+      - cache:/var/lib/mopidy/.local/share/mopidy
+    entrypoint:
+      - mopidy
+      - local
+      - scan
+
   mopidy:
     image: whatever4711/mopidy:amd64
     depends_on:
+      - mopidy_prepare
+      - mopidy_scan
       - icecast
     build:
       context: ./mopidy
@@ -16,7 +45,8 @@ services:
     volumes:
       - ./media:/var/lib/mopidy/media:ro
       - ./local:/var/lib/mopidy/local
-      - ./mopidy/mopidy.conf:/var/lib/mopidy/.config/mopidy/mopidy.conf
+      - cache:/var/lib/mopidy/.local/share/mopidy
+    #  - ./mopidy/mopidy.conf:/var/lib/mopidy/.config/mopidy/mopidy.conf
     #stdin_open: true
     #tty: true
     #entrypoint: /bin/bash
