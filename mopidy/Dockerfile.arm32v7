@@ -1,0 +1,75 @@
+FROM arm32v7/debian:stretch-slim
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    DEBCONF_NONINTERACTIVE_SEEN=true \
+    LANG=C.UTF-8 \
+    TZ=Etc/UTC
+
+# Default configuration
+COPY mopidy.conf /var/lib/mopidy/.config/mopidy/mopidy.conf
+COPY icecast.xml /var/lib/mopidy/.config/mopidy/icecast.xml
+COPY silence.mp3 /usr/share/icecast2/web/silence.mp3
+# Start helper script
+COPY entrypoint.sh /entrypoint.sh
+
+RUN set -ex \
+    # Official Mopidy install for Debian/Ubuntu along with some extensions
+    # (see https://docs.mopidy.com/en/latest/installation/debian/ )
+ && apt-get update -q \
+ && apt-get install -qy --no-install-recommends --no-install-suggests \
+        curl \
+        build-essential \
+        gnupg2 \
+        ca-certificates \
+        gstreamer1.0-alsa \
+        gstreamer1.0-plugins-bad \
+        libxml2 \
+        libxml2-dev \
+        libxslt1-dev \
+        python-crypto \
+	python-dev \
+        zlib1g-dev \
+        dumb-init \
+        icecast2 \
+ && curl -L https://apt.mopidy.com/mopidy.gpg | apt-key add - \
+ && curl -L https://apt.mopidy.com/mopidy.list -o /etc/apt/sources.list.d/mopidy.list \
+ && apt-get update -q \
+ && apt-get install -qy --no-install-recommends --no-install-suggests \
+        mopidy \
+        mopidy-soundcloud \
+        mopidy-spotify \
+ && curl -L https://bootstrap.pypa.io/get-pip.py | python - \
+ && pip install -U six \
+ && pip install \
+        Mopidy-Moped \
+        Mopidy-GMusic \
+        Mopidy-YouTube \
+        Mopidy-MusicBox-Webclient \
+        Mopidy-Material-Webclient \
+        Mopidy-API-Explorer \
+        Mopidy-WebSettings \
+        pyasn1==0.3.2 \
+    # Clean-up
+ && apt-get purge --auto-remove -y \
+        curl \
+        build-essential \
+        libxml2-dev \
+        libxslt1-dev \
+        zlib1g-dev \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* ~/.cache \
+    # Limited access rights.
+ && mkdir -p /usr/local/icecast/logs/ \
+ && chown mopidy:audio -R /var/lib/mopidy/.config /etc/icecast2 /usr/local/icecast/logs/ \
+ && chmod +x /entrypoint.sh \
+ && chown mopidy:audio /entrypoint.sh
+
+# Run as mopidy user
+USER mopidy
+
+VOLUME ["/var/lib/mopidy/local", "/var/lib/mopidy/media"]
+
+EXPOSE 6600 6680
+
+ENTRYPOINT ["/usr/bin/dumb-init", "/entrypoint.sh"]
+CMD ["/usr/bin/mopidy"]

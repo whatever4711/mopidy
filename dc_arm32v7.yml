@@ -1,0 +1,31 @@
+version: '3'
+services:
+  mopidy:
+    image: whatever4711/mopidy:arm32v7
+    depends_on:
+      - icecast
+    build:
+      context: ./mopidy
+      dockerfile: Dockerfile.arm32v7
+#    environment:
+      #- PULSE_COOKIE_DATA="$(pax11publish -d | grep --color=never -Po '(?<=^Cookie: ).*')"
+      #- PULSE_SERVER="tcp:$(hostname -i):4713"
+    ports:
+      - "6600:6600"
+      - "6680:6680"
+    volumes:
+      - ./media:/var/lib/mopidy/media:ro
+      - ./local:/var/lib/mopidy/local
+      - ./mopidy/mopidy.conf:/var/lib/mopidy/.config/mopidy/mopidy.conf
+    #stdin_open: true
+    #tty: true
+    #entrypoint: /bin/bash
+    #command: mopidy
+
+  icecast:
+    image: whatever4711/icecast:arm32v7
+    build:
+      context: ./icecast
+      dockerfile: Dockerfile.arm32v7
+    ports:
+      - "8000:8000"
