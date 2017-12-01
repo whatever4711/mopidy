@@ -7,8 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # Default configuration
 COPY mopidy.conf /var/lib/mopidy/.config/mopidy/mopidy.conf
-#COPY icecast.xml /var/lib/mopidy/.config/mopidy/icecast.xml
-#COPY silence.mp3 /usr/share/icecast2/web/silence.mp3
+
 # Start helper script
 COPY entrypoint.sh /entrypoint.sh
 
@@ -27,8 +26,10 @@ RUN set -ex \
         libxml2-dev \
         libxslt1-dev \
         python-crypto \
+        python-lxml \
+        python-dev \
+        zlib1g-dev \
         dumb-init \
-	      #icecast2 \
  && curl -L https://apt.mopidy.com/mopidy.gpg | apt-key add - \
  && curl -L https://apt.mopidy.com/mopidy.list -o /etc/apt/sources.list.d/mopidy.list \
  && apt-get update -q \
@@ -47,17 +48,16 @@ RUN set -ex \
         Mopidy-API-Explorer \
         Mopidy-WebSettings \
         pyasn1==0.3.2 \
-# && sed -i s/false/true/ /etc/default/icecast2 \
     # Clean-up
  && apt-get purge --auto-remove -y \
         curl \
         build-essential \
         libxml2-dev \
         libxslt1-dev \
+        zlib1g-dev \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* ~/.cache \
     # Limited access rights.
- && mkdir -p /usr/local/icecast/logs/ \
  && chown mopidy:audio -R /var/lib/mopidy/.config/ \
  && chmod +x /entrypoint.sh \
  && chown mopidy:audio /entrypoint.sh
