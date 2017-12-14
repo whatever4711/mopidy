@@ -1,0 +1,21 @@
+FROM arm64v8/alpine:3.7
+
+RUN set -ex \
+ && apk upgrade -a --no-cache \
+ && apk add --no-cache \
+        icecast \
+        su-exec \
+        tini \
+ && mkdir -p /etc/icecast /var/log/icecast \
+ && chown -R icecast:icecast /var/log/icecast
+
+
+COPY mime.types /etc/mime.types
+COPY icecast.xml /etc/icecast/icecast.xml
+COPY silence.mp3 /usr/share/icecast/web/silence.mp3
+
+EXPOSE 8000
+ENTRYPOINT ["/sbin/tini", "--"]
+
+CMD ["su-exec", "icecast", "icecast", "-c", "/etc/icecast/icecast.xml"]
+

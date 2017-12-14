@@ -1,0 +1,55 @@
+FROM arm64v8/alpine:3.7
+
+ENV LANG C.UTF-8
+ENV PYTHONIOENCODING UTF-8
+ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs
+
+# Default configuration
+COPY mopidy.conf /var/lib/mopidy/.config/mopidy/mopidy.conf
+# Start helper script
+COPY alpine.sh /entrypoint.sh
+
+RUN set -ex \
+ && chmod +x /entrypoint.sh \
+ && addgroup -S -g 1000 mopidy \
+ && adduser -S -D -h /var/lib/mopidy -s /sbin/nologin -G mopidy -g mopidy -u 1000 mopidy \
+ && echo "http://nl.alpinelinux.org/alpine/edge/main" > /etc/apk/repositories \
+ && echo "http://nl.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
+ && echo "http://nl.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories \
+ && apk add -u busybox --no-cache \
+ && apk upgrade --no-cache --available \
+ && apk add --no-cache \
+        ca-certificates \
+        git \
+        gst-libav \
+        gst-plugins-bad \
+        gst-plugins-good \
+        gst-plugins-ugly \
+        py-gst \
+        py-pip \
+        python2 \
+        python2-dev \
+        su-exec \
+        tini \
+ && pip install -U pip \
+ && pip install \
+        Mopidy-Internetarchive \
+        Mopidy-Local-Images \
+        Mopidy-Local-SQLite \
+        Mopidy-Moped \
+        Mopidy-MusicBox-Webclient \
+        Mopidy-Podcast \
+        Mopidy-Scrobbler \
+        Mopidy-TuneIn \
+        Mopidy-YouTube \
+        git+https://github.com/mopidy/mopidy-soundcloud#egg=mopidy-soundcloud \
+        git+https://github.com/xsteadfastx/mopidy-emby#egg=mopidy-emby \
+        mopidy
+
+
+VOLUME ["/var/lib/mopidy/local", "/var/lib/mopidy/media", "/var/lib/mopidy/playlists"]
+EXPOSE 6680 6600
+
+ENTRYPOINT ["/sbin/tini", "--", "/entrypoint.sh"]
+CMD ["start"]
+

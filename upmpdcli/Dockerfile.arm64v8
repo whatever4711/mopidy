@@ -1,4 +1,4 @@
-FROM arm64v8/debian:stretch-slim
+FROM arm64v8/debian:stretch-slim AS build
 
 ENV DEBIAN_FRONTEND=noninteractive \
     DEBCONF_NONINTERACTIVE_SEEN=true \
@@ -26,80 +26,52 @@ RUN apt-get -qy update \
      python-requests \
      libjsoncpp-dev \
      dh-systemd \
-     gnupg2 \
-     dirmngr
-RUN echo "deb http://www.lesbonscomptes.com/upmpdcli/downloads/raspbian-stretch/ stretch main" > /etc/apt/sources.list.d/upmpdcli.list \
-  && echo "deb-src http://www.lesbonscomptes.com/upmpdcli/downloads/raspbian-stretch/ stretch main" >> /etc/apt/sources.list.d/upmpdcli.list \
-  && gpg --keyserver ha.pool.sks-keyservers.net --recv-key 'F8E3347256922A8AE767605B7808CE96D38B9201' \
-  && gpg --export '7808CE96D38B9201' | apt-key add - \
-  && apt-get -qy update
-WORKDIR build/libupnp6
-RUN apt-get source libupnp6 \
-  && cd libupnp-1.6.20.jfd5/ \
-  && debuild -us -uc 
-RUN ls -la && dpkg -i *.deb
-WORKDIR build/libupnpp4
-RUN apt-get source libupnpp4 \
-  && cd libupnpp4-0.16.0 \
-  && debuild  -us -uc
-RUN ls -la && dpkg -i *.deb
-WORKDIR build/upmpdcli
-RUN apt-get source upmpdcli
-RUN cd upmpdcli-1.2.15/ \
- && debuild  -us -uc
-RUN ls -la && dpkg -i *.deb
+     git \
+     checkinstall \
+     libupnp6-dev \
+     libupnp6
+WORKDIR /build
+RUN git clone https://@opensourceprojects.eu/git/p/libupnpp/code libupnpp-code \
+  && git clone https://@opensourceprojects.eu/git/p/upmpdcli/code upmpdcli-code 
+WORKDIR /build/libupnpp-code
+RUN sh autogen.sh 
+RUN ./configure --prefix=/usr --sysconfdir=/etc
+RUN make
+RUN make install
+RUN checkinstall -D --pkgname="libupnpp" --pkgversion="0.15.1" --maintainer="whatever4711@gmail.com" --nodoc --install=no --pakdir=/build
 
-#RUN apt-get -qy update \
-#  && apt-get install -y --no-install-recommends --no-install-suggests \
-#             ca-certificates \
-#             git \
-#             build-essential \
-#             debhelper \
-#             dh-systemd \
-#             autoconf \ 
-#             automake \
-#             libtool \
-#             libupnp6-dev \
-#             libcurl4-gnutls-dev \
-#             libmpdclient-dev \
-#             libexpat1-dev \
-#             init-system-helpers \
-#             pkg-config \
-#             dh-python \
-#             python \
-#             libmicrohttpd-dev \
-#             libjsoncpp-dev
+WORKDIR /build/upmpdcli-code
+RUN sh autogen.sh
+RUN ./configure --prefix=/usr --sysconfdir=/etc
+RUN make
+RUN make install
+RUN checkinstall -D --pkgname="upmpdcli" --pkgversion="0.13.1" --maintainer="whatever4711@gmail.com" --nodoc --install=no --pakdir=/build
 
-#WORKDIR /usr/src
-#RUN git clone https://@opensourceprojects.eu/git/p/upmpdcli/code upmpdcli-code \
-#  && cd upmpdcli-code
-#
-#RUN git clone https://github.com/medoc92/libupnpp.git \
-#  && cd libupnpp \
-#  && ./autogen.sh \
-#  && dpkg-buildpackage -b -us -uc \
-#  && dpkg -i ../libupnpp*.deb
-#
-#RUN git clone https://github.com/medoc92/upmpdcli.git \
-#  && cd upmpdcli \
-#  && ./autogen.sh \
-#  && dpkg-buildpackage -b -us -uc \ 
-#  && dpkg -i ../upmpdcli_*.deb
-#
-#RUN useradd -m upmpd
-#
-#USER upmpd
-#
-#ADD upmpdcli.conf /etc/
-#
-#ENV UPMPD_CONFIG /etc/upmpdcli.conf
-#EXPOSE 6610
-#
-#ENTRYPOINT ["/usr/bin/upmpdcli"]
-#COPY "icecast.xml" "/usr/share/icecast2/icecast.xml"
-#EXPOSE 8000
-#VOLUME ["/var/log/icecast2", "/usr/share/icecast2"]
-#
-#USER icecast2
-#ENTRYPOINT ["icecast2", "-n"]
-#CMD ["-c", "/usr/share/icecast2/icecast.xml"]
+
+FROM arm64v8/debian:stretch-slim 
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    DEBCONF_NONINTERACTIVE_SEEN=true \
+    LANG=C.UTF-8 \
+    TZ=Etc/UTC
+
+RUN apt-get -yq update \
+ && apt-get -yq --no-install-recommends --no-install-suggests install \
+     libcurl3-gnutls \
+     libupnp6 \
+     libmpdclient2 \
+     libmicrohttpd12 \
+     libjsoncpp1 \
+     libexpat1 \
+     python-requests \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* ~/.cache 
+COPY --from=build /build/*.deb /debs/
+WORKDIR /debs
+RUN dpkg -i *.deb \
+ && useradd -m upmpd
+USER upmpd
+ADD upmpdcli.conf /etc/
+ENV UPMPD_CONFIG /etc/upmpdcli.conf
+EXPOSE 6610
+ENTRYPOINT ["/usr/bin/upmpdcli"]
